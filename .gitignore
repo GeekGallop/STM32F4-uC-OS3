@@ -1,0 +1,34 @@
+# 编译输出目录
+Output/
+
+# Keil MDK 编译产物
+*.axf
+*.hex
+*.lst
+*.map
+*.o
+*.d
+*.crf
+*.lnp
+*.plg
+*.tra
+*.dep
+*.iex
+*.sct
+*.htm
+*.dcr
+*.scvd
+
+# Keil 工程备份文件
+*.uvoptx.bak
+*.uvprojx.bak
+*.uvgui.*
+
+# 编辑器临时文件
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 其他系统文件
+Thumbs.db
