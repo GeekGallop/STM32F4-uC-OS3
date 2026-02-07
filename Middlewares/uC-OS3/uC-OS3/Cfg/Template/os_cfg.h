@@ -69,6 +69,7 @@
 #define OS_CFG_Q_DEL_EN                            1u           /*     Include code for OSQDel()                                         */
 #define OS_CFG_Q_FLUSH_EN                          1u           /*     Include code for OSQFlush()                                       */
 #define OS_CFG_Q_PEND_ABORT_EN                     1u           /*     Include code for OSQPendAbort()                                   */
+#define OS_CFG_ISR_POST_EN                         1u           /* 新增：启用中断上下文发布消息功能（关键！） */
 
 
                                                                 /* ---------------------------- SEMAPHORES ----------------------------- */

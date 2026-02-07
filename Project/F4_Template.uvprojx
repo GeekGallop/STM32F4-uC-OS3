@@ -134,11 +134,11 @@
             <RunIndependent>0</RunIndependent>
             <UpdateFlashBeforeDebugging>1</UpdateFlashBeforeDebugging>
             <Capability>1</Capability>
-            <DriverSelection>-1</DriverSelection>
+            <DriverSelection>4096</DriverSelection>
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
-          <Flash3></Flash3>
+          <Flash3>"" ()</Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source</IncludePath>
+              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source;..\Drivers\BSP\usart</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -429,6 +429,11 @@
               <FileName>led.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\BSP\LED\led.c</FilePath>
+            </File>
+            <File>
+              <FileName>usart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\BSP\usart\usart.c</FilePath>
             </File>
           </Files>
         </Group>
