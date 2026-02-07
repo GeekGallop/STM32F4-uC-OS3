@@ -4,8 +4,8 @@
 #include "sys.h"
 
 
-#define LED0 PAout(0)       // PA0
-#define LED1 PAout(1)       // PA1
+#define LED0 PBout(1)       // PA0
+#define LED1 PCout(13)       // PA1
 
 void led_init(void);        //初始化
 

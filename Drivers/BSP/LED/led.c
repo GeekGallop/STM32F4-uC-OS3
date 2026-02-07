@@ -4,18 +4,24 @@
 /* LED IO初始化 */ 
 void led_init(void)
 {
-    GPIO_InitTypeDef  GPIO_InitStructure;
+  GPIO_InitTypeDef  GPIO_InitStructure;
 
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);   /* 使能PA端口时钟 */
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB|RCC_AHB1Periph_GPIOC, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;               /* LED0-->PB.5 端口配置 */
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;           /* 推挽输出 */
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;       /* IO口速度为50MHz */
-    GPIO_Init(GPIOA, &GPIO_InitStructure);                  /* 根据设定参数初始化GPIOB.5 */
-    GPIO_SetBits(GPIOA,GPIO_Pin_0);                         /* PB.5 输出高 */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;               /* LED1-->PE.5 端口配置, 推挽输出 */
-    GPIO_Init(GPIOA, &GPIO_InitStructure);                  /* 推挽输出，IO口速度为50MHz */
-    GPIO_SetBits(GPIOA,GPIO_Pin_1);                         /* PE.5 输出高  */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+	
+  GPIO_SetBits(GPIOB,GPIO_Pin_1);
+  GPIO_SetBits(GPIOC,GPIO_Pin_13);
 }

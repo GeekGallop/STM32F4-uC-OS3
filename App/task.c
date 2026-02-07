@@ -134,7 +134,6 @@ void task1(void *p_arg)
     while(1)
     {
         LED0 = !LED0;
-        
         OSTimeDly(500, OS_OPT_TIME_DLY, &err);          /* 延时1000ticks */
     }
 }
