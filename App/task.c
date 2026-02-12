@@ -1,15 +1,11 @@
 #include "task.h"
 #include "os.h"
 #include "./LED/led.h"
-// 1. 新增：添加USART头文件（必须）
-#include "./USART/usart.h"  
-
-/******************************************************************************************************/
-/*uC/OS-III配置*/
-
-/* START_TASK 任务 配置
- * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
- */
+#include "./key/key.h"
+#include "./usart/usart.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "stdint.h"
 #define START_TASK_PRIO 2                               /* 任务优先级 */
 #define START_STK_SIZE  512                             /* 任务栈大小 */
 OS_TCB                  StartTask_TCB;                  /* 任务控制块 */
@@ -28,25 +24,31 @@ void task1(void *p_arg);                                /* 任务函数 */
 /* TASK2 任务 配置
  * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
  */
-#define TASK2_PRIO      (OS_CFG_PRIO_MAX - 5)           /* 2. 修改：原和TASK1同优先级，改为-5避免冲突 */
+#define TASK2_PRIO      (OS_CFG_PRIO_MAX - 5)          
 #define TASK2_STK_SIZE  1024                            /* 任务栈大小 */
 OS_TCB                  Task2_TCB;                      /* 任务控制块 */
 CPU_STK                 Task2_STK[TASK2_STK_SIZE];      /* 任务栈 */
 void task2(void *p_arg);                                /* 任务函数 */
 
-/* TASK_USART 任务 配置（新增）
- * 优先级：OS_CFG_PRIO_MAX - 6，低于TASK2，避免优先级冲突
- * 栈大小：256（比原128大，适配printf和串口操作）
+/* TASK3 任务 配置
+ * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
  */
-#define TASK_USART_PRIO     (OS_CFG_PRIO_MAX - 6)       
-#define TASK_USART_STK_SIZE 256                         
-OS_TCB                  TaskUSART_TCB;                  /* 取消static，和其他任务保持一致 */
-CPU_STK                 TaskUSART_Stk[TASK_USART_STK_SIZE];
-void TaskUSART(void *p_arg);                            /* 取消static，和其他任务保持一致 */
+#define TASK3_PRIO      (OS_CFG_PRIO_MAX - 6)           /* 2. 修改：原和TASK1同优先级，改为-5避免冲突 */
+#define TASK3_STK_SIZE  1024                            /* 任务栈大小 */
+OS_TCB                  Task3_TCB;                      /* 任务控制块 */
+CPU_STK                 Task3_STK[TASK3_STK_SIZE];      /* 任务栈 */
+void task3(void *p_arg);                                /* 任务函数 */
+
+
+#define PROTOCOL_PRIO    (OS_CFG_PRIO_MAX - 7)
+#define PROTOCOL_STK_SIZE  2048
+OS_TCB                  Protocol_Task_TCB;
+CPU_STK                 Protocol_Task_STK[PROTOCOL_STK_SIZE];
+void Protocol_Task(void*p_arg);
 
 void app_start(void)
 {
-    OS_ERR err;
+    OS_ERR err;//错误句柄
     
     /* 初始化uC/OS-III */
     OSInit(&err);
@@ -95,7 +97,7 @@ void start_task(void *p_arg)
     OS_CPU_SysTickInit(cnts);
     
     /* 开启时间片调度，时间片设为默认值 */
-    OSSchedRoundRobinCfg(OS_TRUE, 0, &err);
+    OSSchedRoundRobinCfg(OS_TRUE, 10, &err);
     
     /* 创建Task1 */
     OSTaskCreate(   (OS_TCB        *)&Task1_TCB,
@@ -108,7 +110,7 @@ void start_task(void *p_arg)
                     (CPU_STK_SIZE   )TASK1_STK_SIZE,
                     (OS_MSG_QTY     )0,
                     (OS_TICK        )0,
-                    (void          *)0,
+                    (void          *)10,
                     (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
                     (OS_ERR        *)&err);
     
@@ -122,27 +124,41 @@ void start_task(void *p_arg)
                     (CPU_STK_SIZE   )TASK2_STK_SIZE / 10,
                     (CPU_STK_SIZE   )TASK2_STK_SIZE,
                     (OS_MSG_QTY     )0,
-                    (OS_TICK        )0,
-                    (void          *)0,
+                    (OS_TICK        )10,
+                    (void          *)10,
                     (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
                     (OS_ERR        *)&err);
     
-    /* 3. 新增：创建USART任务（和Task1/Task2同位置） */
-    OSTaskCreate(   (OS_TCB        *)&TaskUSART_TCB,
-                    (CPU_CHAR      *)"usart_task",
-                    (OS_TASK_PTR    )TaskUSART,
+		/* 创建Task3 */
+    OSTaskCreate(   (OS_TCB        *)&Task3_TCB,
+                    (CPU_CHAR      *)"task3",
+                    (OS_TASK_PTR    )task3,
                     (void          *)0,
-                    (OS_PRIO        )TASK_USART_PRIO,
-                    (CPU_STK       *)&TaskUSART_Stk[0],
-                    (CPU_STK_SIZE   )TASK_USART_STK_SIZE / 10,
-                    (CPU_STK_SIZE   )TASK_USART_STK_SIZE,
+                    (OS_PRIO        )TASK3_PRIO,
+                    (CPU_STK       *)&Task3_STK[0],
+                    (CPU_STK_SIZE   )TASK3_STK_SIZE / 10,
+                    (CPU_STK_SIZE   )TASK3_STK_SIZE,
                     (OS_MSG_QTY     )0,
-                    (OS_TICK        )0,
+                    (OS_TICK        )10,
+                    (void          *)10,
+                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+                    (OS_ERR        *)&err);
+
+
+    OSTaskCreate(   (OS_TCB        *)&Protocol_Task_TCB,
+                    (CPU_CHAR      *)"Protocol_Task",
+                    (OS_TASK_PTR    )Protocol_Task,
+                    (void          *)0,
+                    (OS_PRIO        )PROTOCOL_PRIO,
+                    (CPU_STK       *)&Protocol_Task_STK[0],
+                    (CPU_STK_SIZE   )PROTOCOL_STK_SIZE/ 10,
+                    (CPU_STK_SIZE   )PROTOCOL_STK_SIZE,
+                    (OS_MSG_QTY     )0,
+                    (OS_TICK        )10,
                     (void          *)0,
                     (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
                     (OS_ERR        *)&err);
-    
-    /* 删除Start Task */
+														
     OSTaskDel((OS_TCB *)0, &err);
 }
 
@@ -179,39 +195,84 @@ void task2(void *p_arg)
     }
 }
 
-/**
- * @brief       TaskUSART（新增）
- * @param       p_arg : 传入参数(未用到)
- * @retval      无
- * @note        适配现有代码风格，和task1/task2保持一致
- */
-void TaskUSART(void *p_arg)
+
+void task3(void *p_arg)
 {
-    OS_ERR err;
-    uint8_t tx_buf[] = "uC/OS-III + STM32F4 USART Test: Hello World!\r\n";
-    uint8_t rx_byte;
-
-    (void)p_arg; // 未使用参数，消除编译警告
-
-    while (1)
-    {
-        /* 1. 发送测试字符串 */
-        USART_Send_Buf(tx_buf, sizeof(tx_buf)-1); // 去掉字符串结束符，避免发送多余字节
-        /* 2. 用printf输出（重定向后可用） */
-        printf("System Tick: %d | USART Task Running, LED0/LED1 Blinking\r\n", OSTimeGet(&err));
-
-        /* 3. 尝试接收1个字节（超时3秒，3000ticks） */
-        rx_byte = USART_Recv_Byte(3000);
-        if (rx_byte != 0xFF)
-        {
-            printf("Received Byte: 0x%02X | ASCII: %c\r\n", rx_byte, rx_byte);
-        }
-        else
-        {
-            printf("USART Recv Timeout!\r\n");
-        }
-
-        /* 延时1秒（1000ticks），和task2节奏匹配 */
-        OSTimeDly(1000, OS_OPT_TIME_DLY, &err);
-    }
+		OS_ERR err;
+		while(1)
+		{
+			if(KEY_Scan(0)==1)
+			{
+				//OSTaskDel(&Task2_TCB,&err);
+                OSTaskSuspend(&Task2_TCB,&err);//任务挂起
+            }
+            if(KEY_Scan(1)==2)
+            {
+                OSTaskResume(&Task2_TCB,&err);//恢复任务
+            }
+			OSTimeDly(1000, OS_OPT_TIME_DLY, &err);         /* 延时1000ticks */
+		}
+	
 }
+
+void Protocol_Task(void*p_arg)
+{
+    (void*)p_arg;
+    OS_ERR err;
+    static uint8_t rx_state = 0;      // 状态机：0=等待包头，1=接收数据
+    char rx_buffer[100];    // 接收缓冲区（任务私有）
+    uint8_t rx_index = 0;      // 接收位置
+    while(1)
+    {
+        void* msg=OSQPend(&USART_Rx_Queue,100,OS_OPT_PEND_BLOCKING,NULL,NULL,&err);
+        if(err==OS_ERR_NONE)//接收到信号了
+        {
+            uint8_t rx_data=(uint8_t)(uintptr_t)msg;
+            switch(rx_state)
+            {
+                case 0:
+                {
+                    if(rx_data=='[')
+                    {
+                        rx_state=1;
+                        rx_index=0;
+                    }
+                }
+                break;
+
+                case 1:
+                {
+                    if(rx_data==']')
+                    {
+                        rx_state=0;
+                        //此处进行处理    
+                        char*str1=strtok(rx_buffer,",");
+				        char*str2=strtok(NULL,",");
+				        char*str3=strtok(NULL,",");
+				        char*str4=strtok(NULL,",");
+
+                        if (strcmp(str1, "PID") == 0)
+                       {
+                            printf("%f,%f,%f\r\n",atof(str2),atof(str3),atof(str4));
+                       }
+
+
+                    }
+                    else  if(rx_index<=sizeof(rx_buffer))
+                    {
+                        rx_buffer[++rx_index]=rx_data;
+                    }
+                    else
+                    {
+                        rx_state=0;
+                    }
+                }
+                break;
+            }
+        }
+				OSTimeDly(10, OS_OPT_TIME_DLY, &err);         /* 延时1000ticks */
+
+    }
+
+}
+

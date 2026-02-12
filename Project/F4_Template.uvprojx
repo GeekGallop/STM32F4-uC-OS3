@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source;..\Drivers\BSP\usart</IncludePath>
+              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source;..\Drivers\BSP\usart;..\Drivers\BSP\key;..\Drivers\BSP\exti</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -434,6 +434,21 @@
               <FileName>usart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\BSP\usart\usart.c</FilePath>
+            </File>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\BSP\key\key.c</FilePath>
+            </File>
+            <File>
+              <FileName>exti.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\BSP\exti\exti.c</FilePath>
+            </File>
+            <File>
+              <FileName>exti.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drivers\BSP\exti\exti.h</FilePath>
             </File>
           </Files>
         </Group>

@@ -166,29 +166,7 @@ void DebugMon_Handler(void)
 /**
  * @brief  USART1中断服务函数
  */
-void USART1_IRQHandler(void)
-{
-    OS_ERR err;
-    uint8_t rx_byte = 0;
-
-    /* 进入uC/OS中断上下文（必须） */
-    OSIntEnter();
-
-    /* 处理接收非空中断 */
-    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-    {
-        rx_byte = USART_ReceiveData(USART1); // 读取接收字节
-        /* 替换OSQPostISR为OSQPost，适配V3.08.01版本 */
-        OSQPost(&USART_Rx_Queue,                // 队列指针
-                (void *)rx_byte,                // 消息内容（1字节）
-                sizeof(uint8_t),                // 消息大小
-                OS_OPT_POST_FIFO,               // FIFO模式入队
-                &err);                          // 错误码
-        USART_ClearITPendingBit(USART1, USART_IT_RXNE); // 清中断标志
-    }
-
-    /* 退出uC/OS中断上下文（必须） */
-    OSIntExit();
-}
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+ 
+ 
+ 
+ 

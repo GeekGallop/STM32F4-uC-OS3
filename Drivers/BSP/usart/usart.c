@@ -1,10 +1,21 @@
 #include "usart.h"
 #include "stdio.h"
 #include "string.h"
-
+#include "sys.h"
+#include "stm32f4xx_gpio.h"
+#include "stm32f4xx_usart.h"
+#include "misc.h"
+#include "os.h"
 /* uC/OS-III 同步对象定义 */
 OS_MUTEX  USART_Mutex;
 OS_Q      USART_Rx_Queue;
+
+char Serial_RxPacket[100];				
+uint8_t Serial_RxFlag;	
+
+uint8_t uart_rx_count;
+uint8_t uart_rx_error;
+uint8_t uart_tx_error;
 
 /**
  * @brief  USART底层硬件配置（标准库）
@@ -31,7 +42,7 @@ static void USART_HW_Config(void)
     /* 3. 配置RX引脚（PA10）：复用浮空输入 */
     GPIO_InitStruct.GPIO_Pin = USARTx_RX_GPIO_PIN;
     GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
 
     /* 4. 引脚复用映射 */
@@ -68,63 +79,25 @@ void USART_Config(void)
 {
     OS_ERR err;
 
-    /* 1. 创建uC/OS同步对象 */
+
     // 互斥锁：解决多任务串口发送冲突
     OSMutexCreate(&USART_Mutex, "USART1 Mutex", &err);
     // 消息队列：存储中断接收的字节（每个消息1字节）
     OSQCreate(&USART_Rx_Queue, "USART1 Rx Queue", USART_RX_QUEUE_SIZE, &err);
 
-    /* 2. 配置硬件 */
     USART_HW_Config();
 }
 
-/**
- * @brief  发送单个字节（底层）
- */
-void USART_Send_Byte(uint8_t byte)
-{
-    while (USART_GetFlagStatus(USARTx, USART_FLAG_TXE) == RESET); // 等待发送寄存器空
-    USART_SendData(USARTx, byte);
-}
-
-/**
- * @brief  发送缓冲区（多任务安全，互斥锁保护）
- */
-void USART_Send_Buf(uint8_t *buf, uint16_t len)
-{
-    OS_ERR err;
-    if (buf == NULL || len == 0) return;
-
-    /* 获取互斥锁：确保同一时间只有1个任务发送 */
-    OSMutexPend(&USART_Mutex, 0, OS_OPT_PEND_BLOCKING, NULL, &err);
-    /* 逐字节发送 */
-    for (uint16_t i = 0; i < len; i++)
-    {
-        USART_Send_Byte(buf[i]);
-    }
-    /* 释放互斥锁 */
-    OSMutexPost(&USART_Mutex, OS_OPT_POST_NONE, &err);
-}
-
-/**
- * @brief  接收单个字节（从uC/OS队列读取，带超时）
- * @param  timeout: 超时时间（OS_TICK，1000=1秒 @OS_CFG_TICK_RATE_HZ=1000）
- * @retval 接收的字节（超时返回0xFF）
- */
-uint8_t USART_Recv_Byte(OS_TICK timeout)
-{
-    OS_ERR err;
-    void *msg;
-
-    /* 从队列读取1字节（阻塞等待） */
-    msg = OSQPend(&USART_Rx_Queue, timeout, OS_OPT_PEND_BLOCKING, NULL, NULL, &err);
-    if (err != OS_ERR_NONE)
-    {
-        return 0xFF; // 超时
-    }
-    return (uint8_t)msg;
-}
-
+  void USART_Send_Byte(uint8_t byte)
+  {
+      // 等待发送数据寄存器空（TXE标志位）
+      while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+      
+      // 写入数据寄存器
+      USART_SendData(USART1, byte);
+			
+			while(USART_GetFlagStatus(USART1,USART_FLAG_TC)==RESET);
+  }
 
 /**
  * @brief  重定向fputc，支持printf输出到串口
@@ -136,5 +109,40 @@ int fputc(int ch, FILE *f)
     OSMutexPend(&USART_Mutex, 0, OS_OPT_PEND_BLOCKING, NULL, &err);
     USART_Send_Byte((uint8_t)ch);
     OSMutexPost(&USART_Mutex, OS_OPT_POST_NONE, &err);
+
+    if(err!=OS_ERR_NONE)
+    {
+        uart_tx_error++;
+    }
     return ch;
 }
+
+
+void USART1_IRQHandler(void)                	
+{
+
+	OSIntEnter();    
+    OS_ERR err;
+	if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)	
+	{
+
+		uint8_t data_rx = USART_ReceiveData(USARTx);
+
+		/* 将接收到的字节数据转换为指针传递给队列 */
+		void *p_msg = (void *)(uintptr_t)data_rx;
+
+			OSQPost(&USART_Rx_Queue, p_msg, sizeof(uint8_t), OS_OPT_POST_FIFO, &err);
+        if(err==OS_ERR_NONE)
+        {
+            uart_rx_count++;//计数接受数目
+        }
+        else
+        {
+            uart_rx_error++;//计数丢包数
+        }
+
+		USART_ClearITPendingBit(USART1, USART_IT_RXNE);		
+	}
+	OSIntExit();  											 
+} 
+
