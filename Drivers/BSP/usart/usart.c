@@ -6,20 +6,21 @@
 #include "stm32f4xx_usart.h"
 #include "misc.h"
 #include "os.h"
-/* uC/OS-III 同步对象定义 */
+
+/* uC/OS-III synchronization objects */
 OS_MUTEX  USART_Mutex;
 OS_Q      USART_Rx_Queue;
 
-char Serial_RxPacket[100];				
-uint8_t Serial_RxFlag;	
+char Serial_RxPacket[100];                
+uint8_t Serial_RxFlag;    
 
 uint8_t uart_rx_count;
 uint8_t uart_rx_error;
 uint8_t uart_tx_error;
 
 /**
- * @brief  USART底层硬件配置（标准库）
- * @note   配置GPIO、时钟、中断、波特率等
+ * @brief  USART hardware configuration (Standard Library)
+ * @note   Configure GPIO, clock, interrupt, baud rate, etc.
  */
 static void USART_HW_Config(void)
 {
@@ -27,29 +28,29 @@ static void USART_HW_Config(void)
     USART_InitTypeDef USART_InitStruct;
     NVIC_InitTypeDef NVIC_InitStruct;
 
-    /* 1. 使能时钟 */
-    RCC_AHB1PeriphClockCmd(USARTx_GPIO_CLK, ENABLE); // GPIO时钟
-    RCC_APB2PeriphClockCmd(USARTx_CLK, ENABLE);      // USART时钟
+    /* 1. Enable clocks */
+    RCC_AHB1PeriphClockCmd(USARTx_GPIO_CLK, ENABLE);  // GPIO clock
+    RCC_APB2PeriphClockCmd(USARTx_CLK, ENABLE);       // USART clock
 
-    /* 2. 配置TX引脚（PA9）：复用推挽输出 */
+    /* 2. Configure TX pin (PA9): Alternate function push-pull output */
     GPIO_InitStruct.GPIO_Pin = USARTx_TX_GPIO_PIN;
-    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;        // 复用模式
+    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;         // Alternate function mode
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(USARTx_TX_GPIO_PORT, &GPIO_InitStruct);
 
-    /* 3. 配置RX引脚（PA10）：复用浮空输入 */
+    /* 3. Configure RX pin (PA10): Alternate function floating input */
     GPIO_InitStruct.GPIO_Pin = USARTx_RX_GPIO_PIN;
     GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(USARTx_RX_GPIO_PORT, &GPIO_InitStruct);
 
-    /* 4. 引脚复用映射 */
+    /* 4. Pin alternate function mapping */
     GPIO_PinAFConfig(USARTx_TX_GPIO_PORT, GPIO_PinSource9, GPIO_AF_USART1);
     GPIO_PinAFConfig(USARTx_RX_GPIO_PORT, GPIO_PinSource10, GPIO_AF_USART1);
 
-    /* 5. 配置USART参数 */
+    /* 5. Configure USART parameters */
     USART_InitStruct.USART_BaudRate = USART_BAUDRATE;
     USART_InitStruct.USART_WordLength = USART_WordLength_8b;
     USART_InitStruct.USART_StopBits = USART_StopBits_1;
@@ -58,54 +59,61 @@ static void USART_HW_Config(void)
     USART_InitStruct.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
     USART_Init(USARTx, &USART_InitStruct);
 
-    /* 6. 配置中断（接收非空中断） */
-    USART_ITConfig(USARTx, USART_IT_RXNE, ENABLE); // 使能接收非空中断
+    /* 6. Configure interrupt (receive not empty interrupt) */
+    USART_ITConfig(USARTx, USART_IT_RXNE, ENABLE);  // Enable RXNE interrupt
 
-    /* 7. 配置NVIC */
+    /* 7. Configure NVIC */
     NVIC_InitStruct.NVIC_IRQChannel = USARTx_IRQn;
-    NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 5; // 优先级>OS_CPU_CFG_INT_PRIO_MIN
+    NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 5;  // Priority > OS_CPU_CFG_INT_PRIO_MIN
     NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStruct);
 
-    /* 8. 使能USART */
+    /* 8. Enable USART */
     USART_Cmd(USARTx, ENABLE);
 }
 
 /**
- * @brief  USART初始化（含uC/OS同步对象创建）
+ * @brief  USART initialization (including uC/OS synchronization objects creation)
  */
-void USART_Config(void)
+void usart_config(void)
 {
     OS_ERR err;
 
-
-    // 互斥锁：解决多任务串口发送冲突
+    /* Mutex: Solve multi-task USART send conflict */
     OSMutexCreate(&USART_Mutex, "USART1 Mutex", &err);
-    // 消息队列：存储中断接收的字节（每个消息1字节）
+    
+    /* Message queue: Store bytes received in interrupt (1 byte per message) */
     OSQCreate(&USART_Rx_Queue, "USART1 Rx Queue", USART_RX_QUEUE_SIZE, &err);
 
     USART_HW_Config();
 }
 
-  void USART_Send_Byte(uint8_t byte)
-  {
-      // 等待发送数据寄存器空（TXE标志位）
-      while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-      
-      // 写入数据寄存器
-      USART_SendData(USART1, byte);
-			
-			while(USART_GetFlagStatus(USART1,USART_FLAG_TC)==RESET);
-  }
+/**
+ * @brief  Send single byte via USART
+ * @param  byte: Byte to send
+ */
+void USART_Send_Byte(uint8_t byte)
+{
+    /* Wait for transmit data register empty (TXE flag) */
+    while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+    
+    /* Write to data register */
+    USART_SendData(USART1, byte);
+    
+    /* Wait for transmission complete */
+    while(USART_GetFlagStatus(USART1,USART_FLAG_TC)==RESET);
+}
 
 /**
- * @brief  重定向fputc，支持printf输出到串口
+ * @brief  Redirect fputc to support printf output to USART
+ * @note   Protected by mutex to avoid multi-task printf garbled output
  */
 int fputc(int ch, FILE *f)
 {
     OS_ERR err;
-    /* 互斥锁保护printf，避免多任务printf乱码 */
+    
+    /* Mutex protection for printf, avoid multi-task printf garbled output */
     OSMutexPend(&USART_Mutex, 0, OS_OPT_PEND_BLOCKING, NULL, &err);
     USART_Send_Byte((uint8_t)ch);
     OSMutexPost(&USART_Mutex, OS_OPT_POST_NONE, &err);
@@ -117,32 +125,33 @@ int fputc(int ch, FILE *f)
     return ch;
 }
 
-
-void USART1_IRQHandler(void)                	
+/**
+ * @brief  USART1 interrupt handler
+ * @note   Receive byte and post to queue for task processing
+ */
+void USART1_IRQHandler(void)                    
 {
-
-	OSIntEnter();    
+    OSIntEnter();    
     OS_ERR err;
-	if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)	
-	{
+    
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)    
+    {
+        uint8_t data_rx = USART_ReceiveData(USART1);
 
-		uint8_t data_rx = USART_ReceiveData(USARTx);
+        /* Convert received byte to pointer and pass to queue */
+        void *p_msg = (void *)(uintptr_t)data_rx;
 
-		/* 将接收到的字节数据转换为指针传递给队列 */
-		void *p_msg = (void *)(uintptr_t)data_rx;
-
-			OSQPost(&USART_Rx_Queue, p_msg, sizeof(uint8_t), OS_OPT_POST_FIFO, &err);
+        OSQPost(&USART_Rx_Queue, p_msg, 0, OS_OPT_POST_FIFO, &err);
         if(err==OS_ERR_NONE)
         {
-            uart_rx_count++;//计数接受数目
+            uart_rx_count++;  // Count received bytes
         }
         else
         {
-            uart_rx_error++;//计数丢包数
+            uart_rx_error++;  // Count lost packets
         }
 
-		USART_ClearITPendingBit(USART1, USART_IT_RXNE);		
-	}
-	OSIntExit();  											 
-} 
-
+        USART_ClearITPendingBit(USART1, USART_IT_RXNE);        
+    }
+    OSIntExit();                                             
+}

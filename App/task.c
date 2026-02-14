@@ -1,278 +1,388 @@
+/**
+ ******************************************************************************
+ * @file    task.c
+ * @brief   Task code with English comments
+ * @note    Fixed Protocol_Task delay issue causing data loss
+ * @author  User
+ * @date    2026-02-13
+ ******************************************************************************
+ */
+
 #include "task.h"
 #include "os.h"
 #include "./LED/led.h"
 #include "./key/key.h"
 #include "./usart/usart.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "stdint.h"
-#define START_TASK_PRIO 2                               /* 任务优先级 */
-#define START_STK_SIZE  512                             /* 任务栈大小 */
-OS_TCB                  StartTask_TCB;                  /* 任务控制块 */
-CPU_STK                 StartTask_STK[START_STK_SIZE];  /* 任务栈 */
-void start_task(void *p_arg);                           /* 任务函数 */
+#include "./lcd/lcd.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 
-/* TASK1 任务 配置
- * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
- */
-#define TASK1_PRIO      (OS_CFG_PRIO_MAX - 4)           /* 任务优先级 */
-#define TASK1_STK_SIZE  1024                            /* 任务栈大小 */
-OS_TCB                  Task1_TCB;                      /* 任务控制块 */
-CPU_STK                 Task1_STK[TASK1_STK_SIZE];      /* 任务栈 */
-void task1(void *p_arg);                                /* 任务函数 */
+/* Global PID parameters */
+float p=0.0;
+float i=0.0;
+float d=0.0;
 
-/* TASK2 任务 配置
- * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
- */
-#define TASK2_PRIO      (OS_CFG_PRIO_MAX - 5)          
-#define TASK2_STK_SIZE  1024                            /* 任务栈大小 */
-OS_TCB                  Task2_TCB;                      /* 任务控制块 */
-CPU_STK                 Task2_STK[TASK2_STK_SIZE];      /* 任务栈 */
-void task2(void *p_arg);                                /* 任务函数 */
+/* ========== Task Definitions ========== */
 
-/* TASK3 任务 配置
- * 包括: 任务优先级 任务栈大小 任务控制块 任务栈 任务函数
- */
-#define TASK3_PRIO      (OS_CFG_PRIO_MAX - 6)           /* 2. 修改：原和TASK1同优先级，改为-5避免冲突 */
-#define TASK3_STK_SIZE  1024                            /* 任务栈大小 */
-OS_TCB                  Task3_TCB;                      /* 任务控制块 */
-CPU_STK                 Task3_STK[TASK3_STK_SIZE];      /* 任务栈 */
-void task3(void *p_arg);                                /* 任务函数 */
+/* START TASK */
+#define START_TASK_PRIO     2
+#define START_STK_SIZE      512
+OS_TCB      StartTask_TCB;
+CPU_STK     StartTask_STK[START_STK_SIZE];
+void start_task(void *p_arg);
 
+/* TASK1 - LED Blink Task */
+#define TASK1_PRIO          (OS_CFG_PRIO_MAX - 10)
+#define TASK1_STK_SIZE      512
+OS_TCB      Task1_TCB;
+CPU_STK     Task1_STK[TASK1_STK_SIZE];
+void task1(void *p_arg);
 
-#define PROTOCOL_PRIO    (OS_CFG_PRIO_MAX - 7)
-#define PROTOCOL_STK_SIZE  2048
-OS_TCB                  Protocol_Task_TCB;
-CPU_STK                 Protocol_Task_STK[PROTOCOL_STK_SIZE];
-void Protocol_Task(void*p_arg);
+/* TASK2 - LED Blink Task */
+#define TASK2_PRIO          (OS_CFG_PRIO_MAX - 9)
+#define TASK2_STK_SIZE      5512
+OS_TCB      Task2_TCB;
+CPU_STK     Task2_STK[TASK2_STK_SIZE];
+void task2(void *p_arg);
+
+/* TASK3 - Reserved Task */
+#define TASK3_PRIO          (OS_CFG_PRIO_MAX - 8)
+#define TASK3_STK_SIZE      512
+OS_TCB      Task3_TCB;
+CPU_STK     Task3_STK[TASK3_STK_SIZE];
+void task3(void *p_arg);
+
+/* PROTOCOL TASK - UART Protocol Parsing Task */
+#define PROTOCOL_PRIO       6  // High priority for fast UART data processing
+#define PROTOCOL_STK_SIZE   2048
+OS_TCB      Protocol_Task_TCB;
+CPU_STK     Protocol_Task_STK[PROTOCOL_STK_SIZE];
+void Protocol_Task(void *p_arg);
+
+/* LCD TASK - LCD Display Task */
+#define LCD_TASK_PRIO       10  
+#define LCD_TASK_STK_SIZE   1024
+OS_TCB      LCD_Task_TCB;
+CPU_STK     LCD_Task_STK[LCD_TASK_STK_SIZE];
+void LCD_Sensor_Task(void *p_arg);
+
+/* ========== Application Start Function ========== */
 
 void app_start(void)
 {
-    OS_ERR err;//错误句柄
+    OS_ERR err;
     
-    /* 初始化uC/OS-III */
+    /* Initialize uC/OS-III */
     OSInit(&err);
     
-    /* 创建Start Task */
-    OSTaskCreate(   (OS_TCB        *)&StartTask_TCB,
-                    (CPU_CHAR      *)"start_task",
-                    (OS_TASK_PTR    )start_task,
-                    (void          *)0,
-                    (OS_PRIO        )START_TASK_PRIO,
-                    (CPU_STK       *)&StartTask_STK[0],
-                    (CPU_STK_SIZE   )START_STK_SIZE / 10,
-                    (CPU_STK_SIZE   )START_STK_SIZE,
-                    (OS_MSG_QTY     )0,
-                    (OS_TICK        )0,
-                    (void          *)0,
-                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    (OS_ERR        *)&err);
+    /* Create Start Task */
+    OSTaskCreate(&StartTask_TCB,
+                 "start_task",
+                 start_task,
+                 NULL,
+                 START_TASK_PRIO,
+                 &StartTask_STK[0],
+                 START_STK_SIZE / 10,
+                 START_STK_SIZE,
+                 0, 0, NULL,
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
     
-    /* 开始任务调度 */
+    /* Start task scheduler */
     OSStart(&err);
     
     for (;;)
     {
-        /* 不会进入这里 */
+        /* Should never reach here */
     }
 }
 
-/**
- * @brief       start_task
- * @param       p_arg : 传入参数(未用到)
- * @retval      无
- */
+/* ========== START TASK ========== */
+
 void start_task(void *p_arg)
 {
     OS_ERR err;
     CPU_INT32U cnts;
-    RCC_ClocksTypeDef  rcc_clocks;
+    RCC_ClocksTypeDef rcc_clocks;
     
-    /* 初始化CPU库 */
+    (void)p_arg;
+    
+    /* Initialize CPU library */
     CPU_Init();
     
-    /* 根据配置的节拍频率配置SysTick */
-    RCC_GetClocksFreq(&rcc_clocks);                                     /* 获取各个时钟频率 */
-    cnts = ((CPU_INT32U)rcc_clocks.HCLK_Frequency) / OSCfg_TickRate_Hz; /* 返回HCLK时钟频率 */
+    /* Configure SysTick based on configured tick rate */
+    RCC_GetClocksFreq(&rcc_clocks);
+    cnts = ((CPU_INT32U)rcc_clocks.HCLK_Frequency) / OSCfg_TickRate_Hz;
     OS_CPU_SysTickInit(cnts);
     
-    /* 开启时间片调度，时间片设为默认值 */
+    /* Enable time slice scheduling */
     OSSchedRoundRobinCfg(OS_TRUE, 10, &err);
     
-    /* 创建Task1 */
-    OSTaskCreate(   (OS_TCB        *)&Task1_TCB,
-                    (CPU_CHAR      *)"task1",
-                    (OS_TASK_PTR    )task1,
-                    (void          *)0,
-                    (OS_PRIO        )TASK1_PRIO,
-                    (CPU_STK       *)&Task1_STK[0],
-                    (CPU_STK_SIZE   )TASK1_STK_SIZE / 10,
-                    (CPU_STK_SIZE   )TASK1_STK_SIZE,
-                    (OS_MSG_QTY     )0,
-                    (OS_TICK        )0,
-                    (void          *)10,
-                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    (OS_ERR        *)&err);
+    /* Create Task1 */
+    OSTaskCreate(&Task1_TCB, "task1", task1, NULL,
+                 TASK1_PRIO,
+                 &Task1_STK[0],
+                 TASK1_STK_SIZE / 10,
+                 TASK1_STK_SIZE,
+                 0, 10, NULL,
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
     
-    /* 创建Task2 */
-    OSTaskCreate(   (OS_TCB        *)&Task2_TCB,
-                    (CPU_CHAR      *)"task2",
-                    (OS_TASK_PTR    )task2,
-                    (void          *)0,
-                    (OS_PRIO        )TASK2_PRIO,
-                    (CPU_STK       *)&Task2_STK[0],
-                    (CPU_STK_SIZE   )TASK2_STK_SIZE / 10,
-                    (CPU_STK_SIZE   )TASK2_STK_SIZE,
-                    (OS_MSG_QTY     )0,
-                    (OS_TICK        )10,
-                    (void          *)10,
-                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    (OS_ERR        *)&err);
+    /* Create Task2 */
+    OSTaskCreate(&Task2_TCB, "task2", task2, NULL,
+                 TASK2_PRIO,
+                 &Task2_STK[0],
+                 TASK2_STK_SIZE / 10,
+                 TASK2_STK_SIZE,
+                 0, 10, NULL,
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
     
-		/* 创建Task3 */
-    OSTaskCreate(   (OS_TCB        *)&Task3_TCB,
-                    (CPU_CHAR      *)"task3",
-                    (OS_TASK_PTR    )task3,
-                    (void          *)0,
-                    (OS_PRIO        )TASK3_PRIO,
-                    (CPU_STK       *)&Task3_STK[0],
-                    (CPU_STK_SIZE   )TASK3_STK_SIZE / 10,
-                    (CPU_STK_SIZE   )TASK3_STK_SIZE,
-                    (OS_MSG_QTY     )0,
-                    (OS_TICK        )10,
-                    (void          *)10,
-                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    (OS_ERR        *)&err);
+    /* Create Task3 */
+    OSTaskCreate(&Task3_TCB, "task3", task3, NULL,
+                 TASK3_PRIO,
+                 &Task3_STK[0],
+                 TASK3_STK_SIZE / 10,
+                 TASK3_STK_SIZE,
+                 0, 10, NULL,
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
 
-
-    OSTaskCreate(   (OS_TCB        *)&Protocol_Task_TCB,
-                    (CPU_CHAR      *)"Protocol_Task",
-                    (OS_TASK_PTR    )Protocol_Task,
-                    (void          *)0,
-                    (OS_PRIO        )PROTOCOL_PRIO,
-                    (CPU_STK       *)&Protocol_Task_STK[0],
-                    (CPU_STK_SIZE   )PROTOCOL_STK_SIZE/ 10,
-                    (CPU_STK_SIZE   )PROTOCOL_STK_SIZE,
-                    (OS_MSG_QTY     )0,
-                    (OS_TICK        )10,
-                    (void          *)0,
-                    (OS_OPT         )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
-                    (OS_ERR        *)&err);
-														
-    OSTaskDel((OS_TCB *)0, &err);
+    /* Create UART protocol parsing task (fixed version) */
+    OSTaskCreate(&Protocol_Task_TCB, "Protocol_Task", Protocol_Task, NULL,
+                 PROTOCOL_PRIO,
+                 &Protocol_Task_STK[0],
+                 PROTOCOL_STK_SIZE / 10,
+                 PROTOCOL_STK_SIZE,
+                 0, 0, NULL,  // No time slice
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
+    
+    /* Create LCD display task */
+    OSTaskCreate(&LCD_Task_TCB, "LCD_Task", LCD_Sensor_Task, NULL,
+                 8,  // Priority
+                 &LCD_Task_STK[0],
+                 LCD_TASK_STK_SIZE / 10,
+                 LCD_TASK_STK_SIZE,
+                 0, 0, NULL,
+                 OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR,
+                 &err);
+    
+    /* Delete startup task */
+    OSTaskDel(NULL, &err);
 }
 
-/**
- * @brief       task1
- * @param       p_arg : 传入参数(未用到)
- * @retval      无
- */
+/* ========== TASK1 ========== */
+
 void task1(void *p_arg)
 {
     OS_ERR err;
+    (void)p_arg;
     
     while(1)
     {
         LED0 = !LED0;
-        OSTimeDly(500, OS_OPT_TIME_DLY, &err);          /* 延时500ticks */
+        printf("task1 is working!!!\r\n");
+        OSTimeDly(1000, OS_OPT_TIME_DLY, &err);
     }
 }
 
-/**
- * @brief       task2
- * @param       p_arg : 传入参数(未用到)
- * @retval      无
- */
+/* ========== TASK2 ========== */
+
 void task2(void *p_arg)
 {
     OS_ERR err;
+    (void)p_arg;
     
     while(1)
     {
         LED1 = !LED1;
-        
-        OSTimeDly(1000, OS_OPT_TIME_DLY, &err);         /* 延时1000ticks */
+        printf("task2 is working!!!\r\n");
+        OSTimeDly(1000, OS_OPT_TIME_DLY, &err);
     }
 }
 
+/* ========== TASK3 ========== */
 
 void task3(void *p_arg)
 {
-		OS_ERR err;
-		while(1)
-		{
-			if(KEY_Scan(0)==1)
-			{
-				//OSTaskDel(&Task2_TCB,&err);
-                OSTaskSuspend(&Task2_TCB,&err);//任务挂起
-            }
-            if(KEY_Scan(1)==2)
-            {
-                OSTaskResume(&Task2_TCB,&err);//恢复任务
-            }
-			OSTimeDly(1000, OS_OPT_TIME_DLY, &err);         /* 延时1000ticks */
-		}
-	
-}
-
-void Protocol_Task(void*p_arg)
-{
-    (void*)p_arg;
     OS_ERR err;
-    static uint8_t rx_state = 0;      // 状态机：0=等待包头，1=接收数据
-    char rx_buffer[100];    // 接收缓冲区（任务私有）
-    uint8_t rx_index = 0;      // 接收位置
+    (void)p_arg;
+    
     while(1)
     {
-        void* msg=OSQPend(&USART_Rx_Queue,100,OS_OPT_PEND_BLOCKING,NULL,NULL,&err);
-        if(err==OS_ERR_NONE)//接收到信号了
+        OSTimeDly(1000, OS_OPT_TIME_DLY, &err);
+    }
+}
+
+/* ========== LCD Sensor TASK ========== */
+
+/**
+ * @brief  LCD display task
+ * @note   Displays PID parameters on LCD screen
+ */
+void LCD_Sensor_Task(void*p_arg)
+{
+    (void)p_arg;
+    OS_ERR err;
+    u8 buff[20];
+    memset(buff,0,sizeof(buff));
+    /* Clear LCD screen with white background */
+    LCD_Fill(0,0,LCD_HEIGHT,LCD_WIDTH,WHITE);
+    
+    /* Display task title */
+    LCD_ShowString(0,0,"LCD Sensor Task",BLACK,WHITE,16,0);
+    printf("LCD Sensor Task is starting!!!");
+    
+    while(1)
+    {
+        /* Format and display PID parameters */
+        sprintf((char*)buff,"p:%.2f,i:%.2f",p,i);
+        LCD_ShowString(0,20,buff,BLACK,WHITE,16,0);
+        sprintf((char*)buff,"d:%.2f",d);
+				LCD_ShowString(0,40,buff,BLACK,WHITE,16,0);
+        /* Delay 20ms for display refresh */
+        OSTimeDly(20, OS_OPT_TIME_DLY, &err);
+    }
+}
+
+/* ========== PROTOCOL TASK ========== */
+
+/**
+ * @brief  UART protocol parsing task (fixed version)
+ * @note   Fix points:
+ *         1. Remove delay at end of loop
+ *         2. Fix buffer index error
+ *         3. Add buffer clear and null terminator
+ *         4. Optimize state machine logic
+ */
+void Protocol_Task(void *p_arg)
+{
+    (void)p_arg;
+    
+    OS_ERR err;
+    void *p_msg;
+    OS_MSG_SIZE msg_size;
+    CPU_TS ts;
+    
+    /* State machine variables */
+    uint8_t rx_state = 0;      // 0=Wait for packet header '[', 1=Receive data
+    char rx_buffer[50];        // Receive buffer
+    uint8_t rx_index = 0;      // Receive position
+    
+    /* Initialize buffer */
+    memset(rx_buffer, 0, sizeof(rx_buffer));  
+    
+    while(1)
+    {
+        /* Block waiting for message (infinite wait) */
+        p_msg = OSQPend(&USART_Rx_Queue, 
+                        0,                      // Infinite wait
+                        OS_OPT_PEND_BLOCKING, 
+                        &msg_size, 
+                        &ts, 
+                        &err);
+        
+        if(err == OS_ERR_NONE)
         {
-            uint8_t rx_data=(uint8_t)(uintptr_t)msg;
+            /* Retrieve byte data from pointer */
+            uint8_t rx_data = (uint8_t)(uintptr_t)p_msg;
+            
+            /* State machine processing */
             switch(rx_state)
             {
-                case 0:
+                case 0:  /* Wait for packet header '[' */
                 {
-                    if(rx_data=='[')
+                    if(rx_data == '[')
                     {
-                        rx_state=1;
-                        rx_index=0;
+                        rx_state = 1;
+                        rx_index = 0;
+                        memset(rx_buffer, 0, sizeof(rx_buffer));  // Clear buffer
+                        printf("Packet Start\r\n");
                     }
+                    break;
                 }
-                break;
-
-                case 1:
+                
+                case 1:  /* Receive data */
                 {
-                    if(rx_data==']')
+                    if(rx_data == ']')
                     {
-                        rx_state=0;
-                        //此处进行处理    
-                        char*str1=strtok(rx_buffer,",");
-				        char*str2=strtok(NULL,",");
-				        char*str3=strtok(NULL,",");
-				        char*str4=strtok(NULL,",");
-
-                        if (strcmp(str1, "PID") == 0)
-                       {
-                            printf("%f,%f,%f\r\n",atof(str2),atof(str3),atof(str4));
-                       }
-
-
-                    }
-                    else  if(rx_index<=sizeof(rx_buffer))
-                    {
-                        rx_buffer[++rx_index]=rx_data;
+                        /* Packet end */
+                        rx_state = 0;
+                        rx_buffer[rx_index] = '\0';  // Add string terminator
+                        
+                        printf("Received Packet: [%s]\r\n", rx_buffer);
+                        
+                        /* Parse protocol */
+                        char *str1 = strtok(rx_buffer, ",");
+                        char *str2 = strtok(NULL, ",");
+                        char *str3 = strtok(NULL, ",");
+                        char *str4 = strtok(NULL, ",");
+                        
+                        if(str1 != NULL && strcmp(str1, "PID") == 0)
+                        {
+                            if(str2 && str3 && str4)
+                            {
+                                p = atof(str2);
+                                i = atof(str3);
+                                d = atof(str4);
+                                printf("PID Parameters: P=%.3f, I=%.3f, D=%.3f\r\n", p, i, d);
+                            }
+                            else
+                            {
+                                printf("PID Parse Error: Missing parameters\r\n");
+                            }
+                        }
+                        else if(str1 != NULL && strcmp(str1, "LED") == 0)
+                        {
+                            if(str2 && strcmp(str2, "ON") == 0)
+                            {
+                                LED0 = 0;
+                                printf("LED ON\r\n");
+                            }
+                            else if(str2 && strcmp(str2, "OFF") == 0)
+                            {
+                                LED0 = 1;
+                                printf("LED OFF\r\n");
+                            }
+                        }
+                        else
+                        {
+                            printf("Unknown Command: %s\r\n", str1 ? str1 : "NULL");
+                        }
+                        
+                        /* Reset index */
+                        rx_index = 0;
                     }
                     else
                     {
-                        rx_state=0;
+                        /* Store in buffer */
+                        if(rx_index < sizeof(rx_buffer) - 1)
+                        {
+                            rx_buffer[rx_index++] = rx_data;  // Fix: assign then increment
+                        }
+                        else
+                        {
+                            /* Buffer overflow, reset state */
+                            printf("Buffer Overflow! Reset.\r\n");
+                            rx_state = 0;
+                            rx_index = 0;
+                        }
                     }
+                    break;
                 }
-                break;
+                
+                default:
+                    rx_state = 0;
+                    break;
             }
         }
-				OSTimeDly(10, OS_OPT_TIME_DLY, &err);         /* 延时1000ticks */
-
+        else
+        {
+            /* Queue receive error */
+            printf("OSQPend Error: %d\r\n", err);
+        }
     }
-
 }
-

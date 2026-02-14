@@ -187,7 +187,7 @@
             <hadIRAM2>1</hadIRAM2>
             <hadIROM2>0</hadIROM2>
             <StupSel>8</StupSel>
-            <useUlib>0</useUlib>
+            <useUlib>1</useUlib>
             <EndSel>0</EndSel>
             <uLtcg>0</uLtcg>
             <nSecure>0</nSecure>
@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source;..\Drivers\BSP\usart;..\Drivers\BSP\key;..\Drivers\BSP\exti</IncludePath>
+              <IncludePath>..\User;..\App;..\Drivers\BSP;..\Drivers\CMSIS;..\Drivers\STM32F4xx_StdPeriph_Driver\inc;..\Drivers\SYSTEM;..\Middlewares;..\Middlewares\uC-OS3\uC-CPU\Cfg\Template;..\Middlewares\uC-OS3\uC-CPU\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-CPU;..\Middlewares\uC-OS3\uC-LIB\Cfg\Template;..\Middlewares\uC-OS3\uC-LIB;..\Middlewares\uC-OS3\uC-OS3\Cfg\Template;..\Middlewares\uC-OS3\uC-OS3\Ports\ARM-Cortex-M\ARMv7-M\ARM;..\Middlewares\uC-OS3\uC-OS3\Source;..\Drivers\BSP\usart;..\Drivers\BSP\key;..\Drivers\BSP\exti;..\Drivers\BSP\lcd;..\Drivers\SYSTEM\delay</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -450,10 +450,27 @@
               <FileType>5</FileType>
               <FilePath>..\Drivers\BSP\exti\exti.h</FilePath>
             </File>
+            <File>
+              <FileName>lcd.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\BSP\lcd\lcd.c</FilePath>
+            </File>
+            <File>
+              <FileName>lcd_init.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\BSP\lcd\lcd_init.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>Drivers/SYSTEM</GroupName>
+          <Files>
+            <File>
+              <FileName>delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\SYSTEM\delay\delay.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>Drivers/STM32F4xx_StdPeriph_Driver</GroupName>
@@ -794,6 +811,9 @@
               <FilePath>..\Middlewares\uC-OS3\uC-OS3\Source\os_var.c</FilePath>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>New Group</GroupName>
         </Group>
       </Groups>
     </Target>

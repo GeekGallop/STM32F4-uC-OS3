@@ -36,7 +36,7 @@
                                                                 /* Stack size of ISR stack (number of CPU_STK elements) */
 #define  OS_CFG_ISR_STK_SIZE                             128u
                                                                 /* Maximum number of messages                           */
-#define  OS_CFG_MSG_POOL_SIZE                             32u
+#define  OS_CFG_MSG_POOL_SIZE                             256u
                                                                 /* Stack limit position in percentage to empty          */
 #define  OS_CFG_TASK_STK_LIMIT_PCT_EMPTY                  10u
 

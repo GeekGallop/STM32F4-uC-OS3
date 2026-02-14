@@ -25,7 +25,7 @@ extern OS_MUTEX  USART_Mutex;
 extern OS_Q      USART_Rx_Queue; 
 
   void USART_Send_Byte(uint8_t byte);
-void USART_Config(void);        
+void usart_config(void);        
 int fputc(int ch, FILE *f);
 
 #endif /* __USART_H */
